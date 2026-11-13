@@ -5,6 +5,9 @@
 memoria.config.json
 notas/
 
+# Resultados de evals (la tabla queda en el README)
+evals/resultados/
+
 # Node
 node_modules/
 npm-debug.log*

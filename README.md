@@ -9,7 +9,7 @@
 
 Memoria portable para agentes: indexa tus notas, memorias y READMEs en SQLite
 FTS5 y los expone por MCP con **citas exactas `archivo:línea`**. Sin
-dependencias, sin API key y sin embeddings.
+dependencias ni API key; con búsqueda híbrida opcional y evals para comprobarla.
 
 ```text
 $ mcp-memoria search "liquidacion SAC vacaciones"
@@ -35,7 +35,7 @@ inventado. Si la cita no le alcanza, pide más líneas con `leer_fragmento`.
 
 | Herramienta | Para qué |
 | --- | --- |
-| `buscar_memoria` | Busca por texto libre y devuelve fragmentos con `cita: archivo:línea` |
+| `buscar_memoria` | Busca por texto libre y devuelve fragmentos con `cita: archivo:línea` (`modo`: auto, bm25 o hibrido) |
 | `leer_fragmento` | Lee líneas exactas de un archivo indexado (máx. 200 por pedido) |
 | `guardar_nota` | Guarda un dato nuevo, lo indexa y evita duplicados |
 | `listar_fuentes` | Muestra qué está indexado y cuándo se actualizó |
@@ -120,14 +120,101 @@ fuentes (md/txt) ──► chunker ──► fragmentos ──► SQLite FTS5 (b
 5. **Citas que se pueden abrir.** El número de línea sale de la posición real de
    la coincidencia dentro del fragmento, no de una estimación.
 
+### Búsqueda híbrida (opcional)
+
+Si configurás `embeddings`, el índice guarda un vector por fragmento (Ollama +
+`nomic-embed-text`, 768 dimensiones) y la búsqueda combina BM25 con coseno
+usando **RRF** (Reciprocal Rank Fusion): se fusiona por posición, no por puntaje,
+así no hay que calibrar escalas.
+
+```json
+"embeddings": { "url": "http://127.0.0.1:11434", "modelo": "nomic-embed-text" }
+```
+
+Medido con la suite de evals (12 preguntas reales sobre el corpus):
+
+| modo | aciertos@1 | aciertos@5 | MRR |
+| --- | --- | --- | --- |
+| BM25 | 2/12 | **11/12** | 0.4306 |
+| Híbrido | **3/12** | 10/12 | **0.4681** |
+
+**Conclusión honesta: el híbrido mejora el ranking pero no la cobertura.** Sube
+el primer acierto y el MRR (el fragmento correcto queda más arriba), pero pierde
+un punto de top-5: cuando BM25 ya tiene la coincidencia exacta, el vector la
+empuja hacia abajo. Por eso `modo: auto` usa híbrido solo si hay vectores, y
+`modo: bm25` sigue disponible para cobertura máxima. Los números se reproducen
+con `node evals/comparar.js`.
+
+Por qué no embeddings siempre: un modelo de embeddings chico en un corpus con
+jerga propia (`SAC`, `PostGIS`, `mcp-direcciones-ar`) confunde nombres y siglas;
+BM25 no.
+
+## Evals
+
+Una suite de **12 preguntas reales** sobre la memoria, cada una con la respuesta
+esperada y el archivo donde está el dato (`evals/suite.json`). Dos mediciones
+distintas:
+
+1. **Recuperación**: ¿el archivo con el dato aparece en el top 5? No usa modelo,
+   así que corre siempre y gratis.
+2. **Respuesta**: dado el contexto, ¿contesta bien? Se corre con y sin contexto.
+
+```bash
+node evals/correr.js                                  # modelo local
+node evals/correr.js --modelos openai:gpt-4o-mini      # con OPENAI_API_KEY
+node evals/comparar.js                                 # variantes de búsqueda
+```
+
+Resultado con `qwen3.5:4b` local (13/11/2026, 12 preguntas):
+
+| modelo | contexto | aciertos | no sabe | citas | latencia | tokens | costo |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| qwen3.5:4b | sí | **10/12 (83%)** | 1 | 10/12 | 5,9 s | 5.581 | US$ 0 |
+| qwen3.5:4b | no | **0/12 (0%)** | 12 | — | 3,4 s | 1.128 | US$ 0 |
+
+**La memoria es la diferencia entre 0% y 83%** en un modelo de 4B. Sin contexto
+contesta "no tengo información suficiente" en las 12: no inventa. Con contexto
+acierta 10 y cita 10.
+
+Lo que falla y por qué, sin maquillar:
+
+- `timing-attack`: el fragmento traído hablaba de JWT, no del timing attack.
+- `opencockpit`: el fragmento era del archivo correcto pero de otra sección; el
+  modelo prefirió decir que no sabía antes que inventar.
+
+El primer run dio 58% y estaba mal medido: el scorer castigaba sinónimos
+("commits chicos" vs "commits pequeños") y la coma decimal ("0,77" vs "0.77").
+Arreglar el medidor —no el modelo— lo llevó a 83%. Los dos fallos que quedan son
+reales.
+
+Para sumar modelos pagos alcanza con `OPENAI_API_KEY` y `--modelos
+openai:gpt-4o-mini`. La tabla de precios está en `evals/proveedores.js`; un
+modelo sin precio se reporta `s/d`, nunca con un número inventado.
+
+## Harness
+
+Un agente mínimo que usa la memoria: modelo + dos herramientas + tope de pasos.
+El modelo responde JSON (`buscar`, `leer`, `responder`) y el bucle ejecuta la
+acción y le devuelve el resultado. Es el mismo ciclo que hace un agente grande,
+sin framework.
+
+```bash
+node harness/chat.js "¿cuál es la prioridad número uno?"
+node harness/chat.js --verbose "¿qué pasó con el timing attack?"
+```
+
+Devuelve la respuesta, las citas que tocó y cuántos pasos usó. Los tests cubren
+el bucle con un modelo de guion: buscar → responder, leer un archivo, no repetir
+búsquedas, cortar al llegar al máximo y no romperse si el modelo ignora el
+protocolo.
+
 ## Decisiones y por qué
 
 **Léxico antes que embeddings.** Para un corpus personal con jerga propia
 (`SAC`, `FletAR`, `PostGIS`), BM25 es un baseline fuerte y no requiere GPU, API
 key ni un modelo de 500 MB. Además es **explicable**: puedo decir por qué un
-fragmento salió primero. Cuando el corpus pase los ~50 MB o las consultas sean
-semánticas ("¿qué hice la semana pasada?"), el próximo paso es híbrido: BM25 +
-embeddings, y el ranking ya está aislado para cambiarlo.
+fragmento salió primero. El híbrido está implementado y medido (ver arriba): no
+le gana en cobertura a este corpus, así que no es el modo por defecto.
 
 **`node:sqlite` en vez de `better-sqlite3`.** Cero dependencias, cero binarios
 nativos, cero problemas al instalar en Windows. El costo es exigir Node 22.13+.
@@ -141,8 +228,14 @@ la segunda vez devuelve la cita original.
 
 ## Límites honestos
 
-- **No entiende sinónimos.** Busca palabras, no conceptos. "Plata" no encuentra
-  "sueldo" salvo que ambas estén escritas.
+- **Léxico, con un híbrido opcional.** BM25 no entiende sinónimos: "plata" no
+  encuentra "sueldo". El modo híbrido ayuda con frases semánticas, pero medido en
+  este corpus empata o pierde cobertura. No hay comprensión del lenguaje, hay
+  coincidencia de tokens y, si está configurado, de vectores.
+- **Los embeddings necesitan Ollama.** Sin él todo funciona igual en BM25; el
+  modo híbrido queda deshabilitado solo.
+- **Las evals son 12 preguntas.** Es una muestra para comparar cambios, no un
+  benchmark: no sirve para afirmar calidad absoluta de un modelo.
 - **El índice es local a la máquina.** No hay sincronización entre dispositivos.
 - **No lee PDFs ni imágenes.** Solo texto plano con extensión conocida.
 - **Un proceso por cliente.** Cada cliente MCP levanta su propio proceso; la
@@ -154,26 +247,31 @@ la segunda vez devuelve la cita original.
 npm test
 ```
 
-**82 tests** con `node --test`, sin frameworks ni mocks de red:
+**132 tests** con `node --test`, sin frameworks ni mocks de red:
 
 - tokenización, acentos, stopwords y saneo de la consulta FTS5;
 - chunker: rangos de línea verificados contra el archivo real;
 - indexado: incremental, archivos borrados, binarios, gigantes y `test/fixtures`;
 - búsqueda: **cada cita se abre y se comprueba que la línea contiene el término**;
+- híbrido: fusión RRF, vectores por fragmento, caída limpia a BM25 si el
+  proveedor falla y proveedor falso para no depender de la red;
+- evals: scoring con sinónimos y decimales, MRR, proveedores (ollama/openai) y
+  costo `s/d` cuando no hay precio;
+- harness: bucle con modelo de guion, lectura de fragmentos, no repetir
+  búsquedas y corte por máximo de pasos;
 - protocolo MCP por stdio: handshake, `tools/list`, errores `-32601`/`-32700`,
   notificaciones y bloqueo de rutas fuera del índice;
 - CLI: `index`, `search`, `stats`, códigos de salida.
 
 ## Roadmap
 
-Esta es la base de una app que crece con los otros cuatro ejercicios:
+Esta es la base de una app que crece con los otros ejercicios:
 
-1. **RAG con embeddings** (híbrido BM25 + vectorial) sobre el mismo índice.
-2. **Evals**: preguntas reales con respuesta esperada, corridas en modelo caro,
-   barato y local, con tabla de aciertos y costo.
-3. **Harness**: CLI propio con estas herramientas y un modelo.
-4. **MCP de pedidos**: el mismo patrón de servidor aplicado a un dominio de
-   negocio.
+1. **RAG híbrido** (BM25 + vectores) — hecho y medido, ver arriba.
+2. **Evals** en tres modelos con tabla de aciertos y costo — hecho para el local;
+   falta correr los pagos con `OPENAI_API_KEY`.
+3. **Harness** propio con herramientas y modelo — hecho (`harness/chat.js`).
+4. **MCP de pedidos**: el mismo patrón aplicado a un dominio de negocio.
 
 ## Licencia
 
