@@ -1,5 +1,12 @@
 # mcp-memoria
 
+<p>
+  <a href="https://github.com/lucabaello1998/mcp-memoria/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/lucabaello1998/mcp-memoria/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/lucabaello1998/mcp-memoria/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/lucabaello1998/mcp-memoria?label=release"></a>
+  <img alt="Licencia" src="https://img.shields.io/badge/licencia-MIT-blue">
+  <img alt="Node" src="https://img.shields.io/badge/node-22.13%2B-brightgreen">
+</p>
+
 Memoria portable para agentes: indexa tus notas, memorias y READMEs en SQLite
 FTS5 y los expone por MCP con **citas exactas `archivo:línea`**. Sin
 dependencias, sin API key y sin embeddings.
