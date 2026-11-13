@@ -37,7 +37,7 @@ jobs:
             | MEMORIA_DB=/tmp/memoria/ci.db node server.js > salida.jsonl
           grep -q '"protocolVersion"' salida.jsonl
           grep -q 'buscar_memoria' salida.jsonl
-          grep -q '"fuentes"' salida.jsonl
+          grep -q 'resumen' salida.jsonl
           # stdout es el canal del protocolo: tres pedidos, tres respuestas.
           test "$(wc -l < salida.jsonl)" -eq 3
 
