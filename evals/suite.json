@@ -1,0 +1,145 @@
+{
+  "descripcion": "Preguntas reales sobre la memoria de Luca, con la respuesta esperada y el archivo donde está el dato. Si una pregunta no se puede contestar con el corpus, no va acá: el objetivo es medir, no adivinar.",
+  "preguntas": [
+    {
+      "id": "prioridad-uno",
+      "pregunta": "¿Cuál es la prioridad número uno de Luca?",
+      "esperado": [
+        "busqueda laboral"
+      ],
+      "fuentes": [
+        "objetivos.md"
+      ]
+    },
+    {
+      "id": "titulo-intermedio",
+      "pregunta": "¿Qué título intermedio le falta terminar y cuántos créditos le quedan?",
+      "esperado": [
+        "tecnico universitario",
+        "12"
+      ],
+      "fuentes": [
+        "cv-general.md",
+        "situacion-actual.md",
+        "informe-perfil-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "sueldos-motor",
+      "pregunta": "¿Con qué tecnología está hecho el motor de liquidación de sueldos?",
+      "esperado": [
+        "net 8"
+      ],
+      "fuentes": [
+        "proyectos.md"
+      ]
+    },
+    {
+      "id": "fletar-base",
+      "pregunta": "¿Qué base de datos geoespacial usa FletAR?",
+      "esperado": [
+        "postgis"
+      ],
+      "fuentes": [
+        "proyectos.md",
+        "cv-general.md",
+        "perfil-tecnico.md"
+      ]
+    },
+    {
+      "id": "ceta-commits",
+      "pregunta": "¿Cuántos commits propios hizo en Ceta-Logística?",
+      "esperado": [
+        "211"
+      ],
+      "fuentes": [
+        "proyectos.md",
+        "cv-general.md",
+        "informe-perfil-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "commits-estilo",
+      "pregunta": "¿Cómo prefiere manejar los commits?",
+      "esperado": [
+        "chicos|pequenos",
+        "frecuentes"
+      ],
+      "fuentes": [
+        "como-trabaja.md",
+        "informe-perfil-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "timing-attack",
+      "pregunta": "¿Qué pasó con la vulnerabilidad de timing attack y a cuánto bajó el tiempo?",
+      "esperado": [
+        "timing",
+        "0.77"
+      ],
+      "fuentes": [
+        "cv-general.md",
+        "research/04-ceta-logistica.md",
+        "informe-perfil-2026-10-18.md"
+      ]
+    },
+    {
+      "id": "opencockpit",
+      "pregunta": "¿Qué app de escritorio hizo para medir el costo real de las herramientas de IA?",
+      "esperado": [
+        "opencockpit"
+      ],
+      "fuentes": [
+        "proyectos.md",
+        "situacion-actual.md"
+      ]
+    },
+    {
+      "id": "legajo",
+      "pregunta": "¿Qué número de legajo SIU tiene en UNAHUR?",
+      "esperado": [
+        "41137425"
+      ],
+      "fuentes": [
+        "cv-general.md"
+      ]
+    },
+    {
+      "id": "mcp-direcciones",
+      "pregunta": "¿Qué servidor MCP hizo para direcciones argentinas?",
+      "esperado": [
+        "direcciones-ar"
+      ],
+      "fuentes": [
+        "proyectos.md"
+      ]
+    },
+    {
+      "id": "fletar-tiempo-real",
+      "pregunta": "¿Qué tecnología usa FletAR para el seguimiento en tiempo real?",
+      "esperado": [
+        "signalr"
+      ],
+      "fuentes": [
+        "proyectos.md",
+        "cv-general.md",
+        "perfil-tecnico.md"
+      ]
+    },
+    {
+      "id": "ceta-fin",
+      "pregunta": "¿Cuándo terminó su etapa en Grupo CETA?",
+      "esperado": [
+        "29",
+        "septiembre",
+        "2026"
+      ],
+      "fuentes": [
+        "proyectos.md",
+        "como-trabaja.md",
+        "situacion-actual.md",
+        "cv-general.md"
+      ]
+    }
+  ]
+}
