@@ -1,0 +1,18 @@
+# Base SQLite y notas locales
+*.db
+*.db-shm
+*.db-wal
+memoria.config.json
+notas/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Fixture a propósito: el indexador tiene que saltear node_modules
+!test/fixtures/repos/uno/node_modules/
+!test/fixtures/repos/uno/node_modules/**
+
+# Sistema
+.DS_Store
+Thumbs.db

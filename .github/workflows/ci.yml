@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Tests (sin red, sin dependencias)
+        run: npm test
+
+      - name: El servidor contesta el handshake MCP
+        run: |
+          mkdir -p /tmp/memoria
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"listar_fuentes","arguments":{}}}' \
+            | MEMORIA_DB=/tmp/memoria/ci.db node server.js > salida.jsonl
+          grep -q '"protocolVersion"' salida.jsonl
+          grep -q 'buscar_memoria' salida.jsonl
+          grep -q '"fuentes"' salida.jsonl
+          # stdout es el canal del protocolo: tres pedidos, tres respuestas.
+          test "$(wc -l < salida.jsonl)" -eq 3
+
+      - name: El CLI indexa, busca y cita
+        run: |
+          mkdir -p /tmp/vacio /tmp/memoria
+          printf '# Nota de prueba\n\nEl motor de liquidacion calcula SAC.\n' > /tmp/vacio/nota.md
+          cat > /tmp/memoria.json <<'JSON'
+          {"base":"/tmp/memoria/cli.db","fuentes":[{"ruta":"/tmp/vacio","etiqueta":"prueba"}]}
+          JSON
+          node cli.js index --config /tmp/memoria.json | grep -q "nuevos: 1"
+          node cli.js search "liquidacion SAC" --config /tmp/memoria.json | grep -q "nota.md:3"

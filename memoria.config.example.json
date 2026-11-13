@@ -1,0 +1,12 @@
+{
+  "base": "~/.local/share/mcp-memoria/memoria.db",
+  "notas": "~/.config/opencode/memory/notas",
+  "fuentes": [
+    { "ruta": "~/.config/opencode/memory", "etiqueta": "memoria" },
+    { "ruta": "~/Documents/repos", "etiqueta": "repos" }
+  ],
+  "extensiones": [".md", ".markdown", ".txt", ".rst"],
+  "ignorar": ["node_modules", "dist", "build", "coverage"],
+  "maxBytes": 2000000,
+  "maximoFragmento": 1200
+}

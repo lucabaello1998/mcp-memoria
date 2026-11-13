@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.lucabaello1998/mcp-memoria",
+  "title": "Memoria personal (FTS5)",
+  "description": "Memoria portable para agentes: indexa notas y READMEs en SQLite FTS5 y los expone con citas archivo:línea.",
+  "repository": {
+    "url": "https://github.com/lucabaello1998/mcp-memoria",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "mcp-memoria",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MEMORIA_CONFIG",
+          "description": "Ruta al archivo memoria.config.json con las fuentes a indexar.",
+          "format": "string",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "MEMORIA_DB",
+          "description": "Ruta de la base SQLite (pisa la configuración).",
+          "format": "string",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
