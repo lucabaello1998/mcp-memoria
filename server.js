@@ -13,7 +13,8 @@ import { pathToFileURL } from "node:url";
 import { cargarConfig } from "./src/config.js";
 import { abrirBase, estadisticas } from "./src/db.js";
 import { indexar } from "./src/indice.js";
-import { buscar, leerFragmento, resumenFuentes } from "./src/buscar.js";
+import { buscar, buscarHibrido, leerFragmento, resumenFuentes } from "./src/buscar.js";
+import { crearProveedorEmbeddings } from "./src/embeddings.js";
 import { guardarNota } from "./src/notas.js";
 
 export const NOMBRE = "mcp-memoria";
@@ -44,6 +45,13 @@ export const HERRAMIENTAS = [
         etiqueta: {
           type: "string",
           description: 'Filtra por etiqueta de fuente, por ejemplo "memoria", "notas" o "repos".',
+        },
+        modo: {
+          type: "string",
+          enum: ["auto", "bm25", "hibrido"],
+          description:
+            "auto (por defecto) usa híbrido si el índice tiene embeddings y léxico si no. " +
+            "bm25 fuerza búsqueda por palabras; hibrido suma similitud semántica.",
         },
       },
       required: ["consulta"],
@@ -128,6 +136,7 @@ export function respuesta(contenido, { error = false } = {}) {
  */
 export function crearContexto(config) {
   const db = abrirBase(config.base);
+  const proveedor = crearProveedorEmbeddings(config);
   let listo = null;
 
   const inicializar = () => {
@@ -135,19 +144,19 @@ export function crearContexto(config) {
       listo = (async () => {
         const stats = estadisticas(db);
         if (stats.fuentes === 0) {
-          await indexar(db, config, { log: (m) => console.error(`[${NOMBRE}] ${m}`) });
+          await indexar(db, config, { log: (m) => console.error(`[${NOMBRE}] ${m}`), proveedor });
         }
       })();
     }
     return listo;
   };
 
-  return { db, config, inicializar };
+  return { db, config, proveedor, inicializar };
 }
 
 /** Ejecuta una herramienta. Se exporta para testearla sin transporte. */
 export async function ejecutarHerramienta(nombre, argumentos = {}, contexto) {
-  const { db, config, inicializar } = contexto;
+  const { db, config, proveedor, inicializar } = contexto;
 
   if (nombre === "buscar_memoria") {
     const consulta = argumentos.consulta;
@@ -161,18 +170,26 @@ export async function ejecutarHerramienta(nombre, argumentos = {}, contexto) {
     const etiqueta = typeof argumentos.etiqueta === "string" && argumentos.etiqueta.trim()
       ? argumentos.etiqueta.trim()
       : null;
+    const modoPedido = ["auto", "bm25", "hibrido"].includes(argumentos.modo) ? argumentos.modo : "auto";
 
     await inicializar();
-    const resultados = buscar(db, consulta, { limite, etiqueta });
+    const hayVectores = Boolean(proveedor) && estadisticas(db).vectores > 0;
+    const usarHibrido = modoPedido === "hibrido" || (modoPedido === "auto" && hayVectores);
+    const resultados = usarHibrido
+      ? await buscarHibrido(db, consulta, { limite, etiqueta, proveedor })
+      : buscar(db, consulta, { limite, etiqueta });
+
     if (resultados.length === 0) {
       return respuesta({
         consulta,
+        modo: usarHibrido ? "hibrido" : "bm25",
         resultados: [],
         mensaje: "No hay fragmentos que coincidan. Probá con otras palabras o revisá listar_fuentes.",
       });
     }
     return respuesta({
       consulta,
+      modo: usarHibrido ? "hibrido" : "bm25",
       total: resultados.length,
       resultados: resultados.map((r) => ({
         cita: `${r.archivo}:${r.linea}`,
@@ -184,6 +201,7 @@ export async function ejecutarHerramienta(nombre, argumentos = {}, contexto) {
         encabezado: r.encabezado,
         fragmento: r.fragmento,
         puntaje: r.puntaje,
+        ...(r.similitud !== undefined ? { similitud: r.similitud } : {}),
       })),
     });
   }
@@ -208,6 +226,7 @@ export async function ejecutarHerramienta(nombre, argumentos = {}, contexto) {
     const guardado = await guardarNota(db, config, {
       texto: argumentos.texto,
       etiquetas: argumentos.etiquetas,
+      proveedor,
     });
     if (guardado.error) return respuesta(guardado.error, { error: true });
     return respuesta({
@@ -223,7 +242,7 @@ export async function ejecutarHerramienta(nombre, argumentos = {}, contexto) {
   }
 
   if (nombre === "reindexar") {
-    const resumen = await indexar(db, config, { log: (m) => console.error(`[${NOMBRE}] ${m}`) });
+    const resumen = await indexar(db, config, { log: (m) => console.error(`[${NOMBRE}] ${m}`), proveedor });
     return respuesta({ ...resumen, resumen: estadisticas(db) });
   }
 

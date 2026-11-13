@@ -32,7 +32,7 @@ function fechaLocal(d = new Date()) {
  * Devuelve `{ archivo, linea, creado }`. Si el texto ya estaba guardado
  * devuelve la cita original con `creado: false`.
  */
-export async function guardarNota(db, config, { texto, etiquetas = [] } = {}) {
+export async function guardarNota(db, config, { texto, etiquetas = [], proveedor = null } = {}) {
   if (!config.notas) {
     return { error: "Las notas están deshabilitadas en la configuración (notas: null)." };
   }
@@ -78,7 +78,7 @@ export async function guardarNota(db, config, { texto, etiquetas = [] } = {}) {
   const linea = despues.slice(0, despues.lastIndexOf(limpio)).split("\n").length;
 
   escribirMeta(db, clave, `${archivo}#${linea}`);
-  await indexarArchivo(db, archivo, "notas", config);
+  await indexarArchivo(db, archivo, "notas", config, { proveedor });
 
   return { archivo, linea, creado: true };
 }

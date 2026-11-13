@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS meta (
   clave TEXT PRIMARY KEY,
   valor TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS vectores (
+  fragmento_id INTEGER PRIMARY KEY REFERENCES fragmentos(id) ON DELETE CASCADE,
+  modelo       TEXT NOT NULL,
+  dimension    INTEGER NOT NULL,
+  vetor        BLOB NOT NULL
+);
 `;
 
 /** Abre (y crea si hace falta) la base. */
@@ -70,6 +77,7 @@ export function estadisticas(db) {
   const fuentes = db.prepare("SELECT COUNT(*) AS n FROM fuentes").get().n;
   const fragmentos = db.prepare("SELECT COUNT(*) AS n FROM fragmentos").get().n;
   const bytes = db.prepare("SELECT COALESCE(SUM(bytes), 0) AS n FROM fuentes").get().n;
+  const conVectores = db.prepare("SELECT COUNT(*) AS n FROM vectores").get().n;
   const porEtiqueta = db
     .prepare("SELECT etiqueta, COUNT(*) AS n FROM fuentes GROUP BY etiqueta ORDER BY n DESC")
     .all();
@@ -77,6 +85,8 @@ export function estadisticas(db) {
     fuentes: Number(fuentes),
     fragmentos: Number(fragmentos),
     bytes: Number(bytes),
+    vectores: Number(conVectores),
+    modeloEmbeddings: leerMeta(db, "modelo_embeddings"),
     porEtiqueta: porEtiqueta.map((f) => ({ etiqueta: f.etiqueta, archivos: Number(f.n) })),
     ultimoIndexado: leerMeta(db, "ultimo_indexado"),
   };

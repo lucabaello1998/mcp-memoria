@@ -121,11 +121,26 @@ export function cargarConfig({ ruta, env = process.env, cwd = process.cwd() } = 
     ? null
     : expandir(crudo.notas ?? join(dirname(baseDatos), "notas"), base);
 
+  // Embeddings opcionales: sin esta sección el índice es BM25 puro.
+  let embeddings = null;
+  if (crudo.embeddings && typeof crudo.embeddings === "object" && crudo.embeddings !== null) {
+    embeddings = {
+      url: typeof crudo.embeddings.url === "string" && crudo.embeddings.url.trim()
+        ? crudo.embeddings.url.trim()
+        : "http://127.0.0.1:11434",
+      modelo: typeof crudo.embeddings.modelo === "string" && crudo.embeddings.modelo.trim()
+        ? crudo.embeddings.modelo.trim()
+        : "nomic-embed-text",
+      lote: Number.isInteger(crudo.embeddings.lote) ? crudo.embeddings.lote : 32,
+    };
+  }
+
   return {
     archivo,
     base: baseDatos,
     notas,
     fuentes,
+    embeddings,
     extensiones: Array.isArray(crudo.extensiones) && crudo.extensiones.length
       ? crudo.extensiones.map((e) => (e.startsWith(".") ? e.toLowerCase() : `.${e.toLowerCase()}`))
       : EXTENSIONES_POR_DEFECTO,
