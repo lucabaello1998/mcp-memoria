@@ -1,0 +1,45 @@
+{
+  "name": "mcp-memoria",
+  "version": "0.1.0",
+  "mcpName": "io.github.lucabaello1998/mcp-memoria",
+  "description": "Memoria portable para agentes: indexa tus notas y READMEs en SQLite FTS5 y las expone por MCP con citas archivo:línea. Sin dependencias y sin API key.",
+  "type": "module",
+  "bin": {
+    "mcp-memoria": "./server.js"
+  },
+  "main": "./server.js",
+  "files": [
+    "server.js",
+    "cli.js",
+    "src/",
+    "skill/SKILL.md",
+    "server.json",
+    "memoria.config.example.json"
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "indice": "node cli.js index"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "memoria",
+    "memory",
+    "rag",
+    "sqlite",
+    "fts5",
+    "agentes",
+    "claude-code",
+    "codex",
+    "cursor"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucabaello1998/mcp-memoria.git"
+  }
+}
