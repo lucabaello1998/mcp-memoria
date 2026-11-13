@@ -9,7 +9,7 @@ import {
   promedio,
   puntuarRespuesta,
 } from "../evals/evaluar.js";
-import { costoEstimado, crearProveedor, precioDe } from "../evals/proveedores.js";
+import { costoEstimado, crearProveedor, parsearEventosOpenCode, precioDe } from "../evals/proveedores.js";
 
 describe("puntuarRespuesta", () => {
   test("acierta con todas las claves, ignorando acentos y mayúsculas", () => {
@@ -147,6 +147,30 @@ describe("proveedores", () => {
 
   test("un tipo desconocido no se acepta", () => {
     assert.throws(() => crearProveedor("magia:algo"), /desconocido/);
+  });
+});
+
+describe("parsearEventosOpenCode", () => {
+  test("junta solo los eventos de texto", () => {
+    const salida = [
+      '{"type":"step_start","part":{"type":"step-start"}}',
+      '{"type":"text","part":{"type":"text","text":"Hola "}}',
+      '{"type":"tool","part":{"tool":"read"}}',
+      '{"type":"text","part":{"type":"text","text":"mundo"}}',
+    ].join("\n");
+    assert.equal(parsearEventosOpenCode(salida), "Hola \nmundo");
+  });
+
+  test("ignora líneas que no son JSON y devuelve vacío si no hay texto", () => {
+    assert.equal(parsearEventosOpenCode("basura\n{roto"), "");
+    assert.equal(parsearEventosOpenCode(""), "");
+  });
+
+  test("el proveedor de opencode se crea con su tipo y modelo", () => {
+    const proveedor = crearProveedor("opencode:proveedor/modelo");
+    assert.equal(proveedor.tipo, "opencode");
+    assert.equal(proveedor.modelo, "proveedor/modelo");
+    assert.equal(proveedor.estimado, true);
   });
 });
 

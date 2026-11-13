@@ -205,6 +205,7 @@ async function main() {
       respuestas.push({
         modelo: proveedor.modelo,
         tipo: proveedor.tipo,
+        estimado: Boolean(proveedor.estimado),
         contexto: usarContexto,
         aciertos: filas.filter((f) => f.ok).length,
         total: filas.length,
@@ -232,11 +233,15 @@ async function main() {
         r.noSabe,
         r.citasBien === null ? "—" : `${r.citasBien}/${r.total}`,
         `${r.latenciaMs} ms`,
-        `${r.tokensEntrada + r.tokensSalida}`,
+        `${r.estimado ? "~" : ""}${r.tokensEntrada + r.tokensSalida}`,
         r.costo === null ? "s/d" : `US$ ${r.costo.toFixed(4)}`,
       ])
     )
   );
+
+  if (respuestas.some((r) => r.estimado)) {
+    console.log("\n~ tokens estimados por caracteres (OpenCode no los informa).");
+  }
 
   if (opciones.detalle) {
     for (const fila of respuestas) {

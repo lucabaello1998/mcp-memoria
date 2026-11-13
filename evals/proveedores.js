@@ -31,6 +31,30 @@ export function costoEstimado(modelo, tokensEntrada, tokensSalida) {
 }
 
 /**
+ * Extrae el texto de la salida JSONL de `opencode run --format json`.
+ *
+ * Cada línea es un evento; los del tipo "text" traen las partes de respuesta.
+ * Se ignora todo lo demás (step_start, tool calls, etc.).
+ */
+export function parsearEventosOpenCode(stdout) {
+  return String(stdout ?? "")
+    .split("\n")
+    .filter((linea) => linea.trim().startsWith("{"))
+    .map((linea) => {
+      try {
+        return JSON.parse(linea);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .filter((evento) => evento.type === "text")
+    .map((evento) => evento.part?.text ?? "")
+    .join("\n")
+    .trim();
+}
+
+/**
  * Crea un proveedor a partir de "tipo:modelo", por ejemplo
  * "ollama:qwen3.5:4b" u "openai:gpt-4o-mini".
  */
@@ -109,6 +133,70 @@ export function crearProveedor(especificacion, { fetchImpl = fetch, env = proces
           texto: datos.choices?.[0]?.message?.content ?? "",
           tokensEntrada: Number(datos.usage?.prompt_tokens ?? 0),
           tokensSalida: Number(datos.usage?.completion_tokens ?? 0),
+          ms: Date.now() - inicio,
+        };
+      },
+    };
+  }
+
+  if (tipo === "opencode") {
+    // Usa el CLI de OpenCode con el modelo que ya está configurado ahí: sirve
+    // para medir con los modelos del entorno sin cargar otra API key.
+    // Los tokens no vienen en la salida, así que se estiman por caracteres.
+    const bin = env.OPENCODE_BIN ?? "opencode";
+    const agente = env.OPENCODE_AGENT ?? "eval";
+    return {
+      tipo,
+      modelo,
+      estimado: true,
+      async charlar(mensajes) {
+        const { spawn } = await import("node:child_process");
+        const texto = mensajes.map((m) => m.content).join("\n\n");
+        const inicio = Date.now();
+
+        // El mensaje va por stdin: por argumento, un prompt multilínea se
+        // rompe en Windows y el proceso queda esperando para siempre.
+        const stdout = await new Promise((resolver, rechazar) => {
+          const proceso = spawn(
+            bin,
+            ["run", "--model", modelo, "--agent", agente, "--format", "json", "--standalone", "--auto"],
+            { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }
+          );
+          let salida = "";
+          let errores = "";
+          const reloj = setTimeout(() => {
+            proceso.kill();
+            rechazar(new Error("El CLI de OpenCode no respondió en 120 s"));
+          }, 120_000);
+
+          proceso.stdout.on("data", (trozo) => {
+            salida += trozo;
+          });
+          proceso.stderr.on("data", (trozo) => {
+            errores += trozo;
+          });
+          proceso.on("error", (error) => {
+            clearTimeout(reloj);
+            rechazar(error);
+          });
+          proceso.on("close", (codigo) => {
+            clearTimeout(reloj);
+            if (codigo !== 0 && !salida.trim()) {
+              rechazar(new Error(`El CLI de OpenCode salió con ${codigo}: ${errores.slice(0, 200)}`));
+              return;
+            }
+            resolver(salida);
+          });
+
+          proceso.stdin.end(texto);
+        });
+
+        const respuesta = parsearEventosOpenCode(stdout);
+
+        return {
+          texto: respuesta,
+          tokensEntrada: Math.ceil(texto.length / 4),
+          tokensSalida: Math.ceil(respuesta.length / 4),
           ms: Date.now() - inicio,
         };
       },

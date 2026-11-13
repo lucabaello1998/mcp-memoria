@@ -172,9 +172,25 @@ Resultado con `qwen3.5:4b` local (13/11/2026, 12 preguntas):
 | qwen3.5:4b | sí | **10/12 (83%)** | 1 | 10/12 | 5,9 s | 5.581 | US$ 0 |
 | qwen3.5:4b | no | **0/12 (0%)** | 12 | — | 3,4 s | 1.128 | US$ 0 |
 
+Y con un modelo grande vía OpenCode (`deepseek-v4.1-flash`):
+
+| modelo | contexto | aciertos | no sabe | citas | latencia | tokens | costo |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| deepseek-v4.1-flash | sí | **12/12 (100%)** | 0 | 10/12 | 8,0 s | ~4.745 | s/d |
+| deepseek-v4.1-flash | no | 2/12 (17%) | 7 | — | 7,6 s | ~967 | s/d |
+
 **La memoria es la diferencia entre 0% y 83%** en un modelo de 4B. Sin contexto
 contesta "no tengo información suficiente" en las 12: no inventa. Con contexto
-acierta 10 y cita 10.
+acierta 10 y cita 10. El modelo grande usa mejor el mismo contexto: 12/12.
+
+Dos advertencias sobre la segunda tabla, para no vender humo:
+
+- El 17% "sin contexto" **no es un baseline limpio**: el agente de OpenCode carga
+  las instrucciones del repo (`AGENTS.md`), que ya incluyen parte del perfil. El
+  piso real es el 0% del modelo local, que arranca en blanco.
+- Con 12/12, las dos citas que fallan son de **recuperación** (`fletar-base` y
+  `mcp-direcciones` no entran en el top 5), no de respuesta: el modelo contestó
+  bien igual.
 
 Lo que falla y por qué, sin maquillar:
 
@@ -190,6 +206,29 @@ reales.
 Para sumar modelos pagos alcanza con `OPENAI_API_KEY` y `--modelos
 openai:gpt-4o-mini`. La tabla de precios está en `evals/proveedores.js`; un
 modelo sin precio se reporta `s/d`, nunca con un número inventado.
+
+También se puede medir con los modelos que ya tenés configurados en OpenCode,
+sin otra API key:
+
+```bash
+node evals/correr.js --modelos opencode:opencode-go/deepseek-v4.1-flash
+```
+
+Usa el CLI con el agente `eval` (sin herramientas) y `--standalone`: el modelo
+responde solo con el contexto y no se pone a leer archivos, que arruinaría la
+medición. Los tokens se estiman por caracteres porque el CLI no los informa.
+
+El agente se declara una vez en la configuración de OpenCode:
+
+```json
+"agent": {
+  "eval": {
+    "mode": "primary",
+    "steps": 1,
+    "tools": { "read": false, "bash": false, "grep": false, "glob": false }
+  }
+}
+```
 
 ## Harness
 
